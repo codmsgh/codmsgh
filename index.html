@@ -2,252 +2,161 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<title>펫. 클리커 시뮬레이터 - Pet Clicker Game</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>🎰 가위바위보 카지노</title>
+
 <style>
 body{
-  margin:0;
-  background:linear-gradient(135deg,#2a2a3f,#1b1b2b);
-  font-family:sans-serif;
-  color:white;
+  font-family: Arial;
   text-align:center;
-}
-.panel{
-  background:#2f2f4a;
-  margin:10px auto;
-  padding:15px;
-  border-radius:14px;
-  width:90%;
-  max-width:400px;
-}
-button{
-  width:100%;
-  padding:14px;
-  margin:6px 0;
-  border:none;
-  border-radius:10px;
-  font-size:18px;
-  background:#4a7dff;
+  background:#111;
   color:white;
+  padding:20px;
+}
+
+button{
+  padding:10px 18px;
+  margin:5px;
+  font-size:15px;
   cursor:pointer;
 }
-button:disabled{background:#555;}
-#resetBtn{background:#ff5c5c;}
-#foodBtn{
-  font-size:60px;
-  background:none;
-}
-#pet{
-  font-size:80px;
-  transition:0.2s;
+
+.betBtn{ background:#333; color:white; }
+.rpsBtn{ background:#ff9800; color:black; font-weight:bold; }
+
+#log{
+  margin-top:20px;
+  height:200px;
+  overflow-y:auto;
+  background:#222;
+  padding:10px;
+  border-radius:10px;
+  text-align:left;
 }
 </style>
 </head>
 <body>
 
-<h2>🐶 펫 클리커</h2>
+<h1>🎰 가위바위보 카지노</h1>
 
-<div class="panel">
-💰 돈: <span id="money">0</span><br>
-🍎 음식: <span id="food">0</span><br>
-⬆ 파워: <span id="power">1</span><br>
-⭐ 명성: <span id="prestige">0</span><br>
-🗿 동상: <span id="statue">1</span>x<br>
-📈 성장배수: <span id="multi">1</span>x
-</div>
+<h2>
+💰 돈: <span id="money">1000</span> |
+🔥 연승: <span id="streak">0</span> |
+🎯 승률: <span id="chance">50</span>%
+</h2>
 
-<div class="panel">
+<h3>💵 베팅 선택</h3>
+<div id="betButtons"></div>
 
-<button id="foodBtn">🍎</button>
+<h3>✊ 선택</h3>
+<button class="rpsBtn" onclick="play('가위')">가위</button>
+<button class="rpsBtn" onclick="play('바위')">바위</button>
+<button class="rpsBtn" onclick="play('보')">보</button>
 
-<button id="upgradeBtn"></button>
-
-<button id="feedBtn">🐶 전부 먹이기</button>
-
-<button id="sellBtn">💰 펫 판매</button>
-
-<button id="gachaBtn"></button>
-
-<button id="prestigeBtn"></button>
-
-<button id="resetBtn">🔄 전체 리셋</button>
-
-</div>
-
-<div class="panel">
-<div id="pet">🐣</div>
-단계: <span id="stage">1</span>
-크기: <span id="sizeLabel">1</span>
-</div>
+<div id="log"></div>
 
 <script>
-// ================= 쿠키 기본 함수
-function setCookie(name,value,days=365){
-  const d=new Date();
-  d.setTime(d.getTime()+days*24*60*60*1000);
-  document.cookie=`${name}=${encodeURIComponent(JSON.stringify(value))};expires=${d.toUTCString()};path=/`;
-}
+let money = Number(localStorage.getItem("money")) || 1000;
+let streak = 0;
+let currentBet = 100;
+let choices = ["가위","바위","보"];
+let moneyEl = document.getElementById("money");
+let streakEl = document.getElementById("streak");
+let chanceEl = document.getElementById("chance");
+let log = document.getElementById("log");
+let betArea = document.getElementById("betButtons");
 
-function getCookie(name){
-  const value=document.cookie.match('(^|;)\\s*'+name+'\\s*=\\s*([^;]+)');
-  return value ? JSON.parse(decodeURIComponent(value[2])) : null;
-}
+// 베팅 버튼 생성
+for(let i=100;i<=2000;i+=100){ createBetBtn(i); }
+createBetBtn("올인");
 
-function deleteCookie(name){
-  document.cookie=`${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-}
-
-// ================= 브라우저별 UUID 생성
-function getUserID(){
-  let id=getCookie("petUserID");
-  if(!id){
-    id="user_"+Math.random().toString(36).substr(2,9);
-    setCookie("petUserID",id);
+function createBetBtn(value){
+  let btn = document.createElement("button");
+  btn.className="betBtn";
+  btn.innerText=value;
+  btn.onclick = ()=>{
+    currentBet = (value==="올인")? money : value;
+    addLog("💵 베팅 선택: "+currentBet);
   }
-  return id;
+  betArea.appendChild(btn);
 }
 
-const USER_ID = getUserID();
-const SAVE_KEY = "petGame_"+USER_ID;
-
-// ================= 데이터 초기화
-let data = getCookie(SAVE_KEY) || {
-  money:0, food:0, power:1, petXP:0, prestige:0, statue:1
-};
-
-// ================= 저장
-function save(){
-  setCookie(SAVE_KEY,data);
+// 승률 계산
+function getWinChance(){
+  if(money>=10000) return 25;
+  if(money>=5000) return 35;
+  if(money>=2000) return 45;
+  return 50;
 }
 
-// ================= 계산
-function getMultiplier(){ return (1+data.prestige/100)*data.statue; }
-function getUpgradeCost(){ return Math.floor(20*Math.pow(1.5,data.power)); }
-function getPrestigeGain(){ return Math.floor(data.money/10); }
-function getGachaCost(){ return 50; }
-
-// ================= 클릭
-function clickFood(){
-  let gain=Math.floor(data.power*getMultiplier());
-  data.food+=gain;
-  popEffect();
-}
-
-// ================= 업그레이드
-function upgrade(){
-  let cost=getUpgradeCost();
-  if(data.money>=cost){ data.money-=cost; data.power++; }
-}
-
-// ================= 먹이
-function feedPet(){
-  if(data.food<=0)return;
-  data.money+=data.food*2;
-  data.petXP+=data.food;
-  data.food=0;
-}
-
-// ================= 판매
-function sellPet(){
-  data.money+=data.petXP*3;
-  data.petXP=0;
-}
-
-// ================= 동상 가챠
-function gacha(){
-  if(data.money<getGachaCost()) return;
-  data.money-=getGachaCost();
-  let r=Math.random();
-  if(r<0.6) data.statue=1.1;
-  else if(r<0.9) data.statue=1.5;
-  else if(r<0.99) data.statue=2;
-  else data.statue=4;
-}
-
-// ================= 명성 환생
-function prestigeUp(){
-  let gain=getPrestigeGain();
-  if(gain<=0)return;
-  if(!confirm("명성 상승 시 모든 것이 초기화됩니다!")) return;
-  data.prestige+=gain;
-  data.money=0;
-  data.food=0;
-  data.power=1;
-  data.petXP=0;
-  data.statue=1;
-  save();
-}
-
-// ================= 전체 리셋
-function hardReset(){
-  if(confirm("게임을 처음부터 시작하시겠습니까?")){
-    deleteCookie(SAVE_KEY);
-    data={money:0, food:0, power:1, petXP:0, prestige:0, statue:1};
-    save();
-    update();
-    alert("게임이 처음부터 시작되었습니다!");
-  }
-}
-
-// ================= 펫 단계
-function getPet(){ 
-  let stage=Math.floor(data.petXP/100);
-  stage=Math.min(stage,4);
-  return stage;
-}
-
-// ================= UI 업데이트
+// 화면 업데이트
 function update(){
-  money.textContent=data.money;
-  food.textContent=data.food;
-  power.textContent=data.power;
-  prestige.textContent=data.prestige;
-  statue.textContent=data.statue;
-  multi.textContent=getMultiplier().toFixed(2);
-
-  upgradeBtn.textContent="⬆ 업그레이드 (비용: "+getUpgradeCost()+")";
-  gachaBtn.textContent="🗿 동상 뽑기 (비용: "+getGachaCost()+")";
-  prestigeBtn.textContent="⭐ 명성 상승 (+"+getPrestigeGain()+")";
-  prestigeBtn.disabled=getPrestigeGain()<=0;
-
-  let stage=getPet();
-  pet.textContent=["🐣","🐤","🐶","🐺","🐲"][stage];
-
-  let size=1+Math.min(data.petXP/100,1)*0.8;
-  pet.style.transform=`scale(${size})`;
-  sizeLabel.textContent=size.toFixed(2);
-
-  save();
+  moneyEl.innerText = money;
+  streakEl.innerText = streak;
+  chanceEl.innerText = getWinChance();
+  localStorage.setItem("money", money);
 }
 
-// ================= 클릭 애니
-function popEffect(){
-  foodBtn.style.transform="scale(1.2)";
-  setTimeout(()=>foodBtn.style.transform="scale(1)",100);
+// 로그
+function addLog(text){
+  log.innerHTML += text+"<br>";
+  log.scrollTop = log.scrollHeight;
 }
 
-// ================= 모바일 터치 이벤트
-foodBtn.addEventListener("touchstart", clickFood);
-upgradeBtn.addEventListener("touchstart", upgrade);
-gachaBtn.addEventListener("touchstart", gacha);
-prestigeBtn.addEventListener("touchstart", prestigeUp);
-feedBtn.addEventListener("touchstart", feedPet);
-sellBtn.addEventListener("touchstart", sellPet);
-resetBtn.addEventListener("touchstart", hardReset);
+// 게임 실행
+function play(player){
+  if(currentBet>money){ alert("돈 부족!"); return; }
 
-// ================= PC 클릭 이벤트
-foodBtn.addEventListener("click", clickFood);
-upgradeBtn.addEventListener("click", upgrade);
-gachaBtn.addEventListener("click", gacha);
-prestigeBtn.addEventListener("click", prestigeUp);
-feedBtn.addEventListener("click", feedPet);
-sellBtn.addEventListener("click", sellPet);
-resetBtn.addEventListener("click", hardReset);
+  let computer = choices[Math.floor(Math.random()*3)];
+  let chance = getWinChance();
 
-// ================= 시작
+  // 🎲 기대감 표시
+  addLog(`${player} 선택! 컴퓨터 선택 중...`);
+  disableButtons(true);
+
+  setTimeout(()=>{
+    let roll = Math.random()*100;
+    let result;
+
+    if(roll<chance) result="win";
+    else result="lose";
+
+    if(Math.random()<0.1) result="draw"; // 10% 무승부
+
+    let multiplier=2;
+    if(streak>=2) multiplier=3;
+    if(streak>=5) multiplier=5;
+
+    if(result==="win"){
+      let gain = currentBet*multiplier;
+      streak++;
+      if(streak%3===0){ gain+=500; addLog("🎉 3연승 보너스 +500"); }
+      money+=gain;
+      addLog(`✅ ${player} vs ${computer} → 승리! +${gain} (배율 x${multiplier})`);
+    }
+    else if(result==="lose"){
+      money-=currentBet;
+      streak=0;
+      addLog(`❌ ${player} vs ${computer} → 패배... -${currentBet}`);
+    }
+    else{
+      addLog(`➖ ${player} vs ${computer} → 무승부`);
+    }
+
+    if(money<=0){ alert("💀 파산! 다시 시작합니다."); money=1000; streak=0; }
+
+    update();
+    disableButtons(false);
+
+  }, 2000); // 2초 기다림
+}
+
+// 버튼 비활성화
+function disableButtons(flag){
+  document.querySelectorAll(".rpsBtn").forEach(b=>b.disabled=flag);
+  document.querySelectorAll(".betBtn").forEach(b=>b.disabled=flag);
+}
+
 update();
-setInterval(update,100);
 </script>
-
 </body>
 </html>
