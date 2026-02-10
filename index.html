@@ -5,79 +5,85 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>💼 타이쿤 클릭커</title>
 
-<!-- ✅ ⭐⭐⭐ AdSense 검증 + 광고 스크립트 (이미 네 pub코드 적용됨) -->
+<!-- ✅ AdSense 검증 코드 (네 코드 그대로 삽입 완료) -->
 <script async
 src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8799032368255701"
 crossorigin="anonymous"></script>
 
 <style>
+*{box-sizing:border-box}
+
 body{
  margin:0;
  font-family:sans-serif;
  background:linear-gradient(135deg,#1e1e2f,#2b2b45);
  color:white;
+ text-align:center;
  display:flex;
  justify-content:center;
 }
 
 .wrapper{
  width:100%;
- max-width:600px;
- padding:10px;
- text-align:center;
+ max-width:500px;
+ padding-bottom:180px;
 }
 
-/* 패널 */
 .panel{
- background:rgba(50,50,80,0.95);
- margin:10px 0;
+ background:rgba(50,50,80,.9);
+ margin:10px;
  padding:12px;
  border-radius:12px;
 }
 
-/* 버튼 */
 button{
  width:100%;
  padding:12px;
- margin:6px 0;
+ margin:4px 0;
  border:none;
  border-radius:10px;
+ font-size:15px;
  background:#4a7dff;
  color:white;
- font-size:15px;
 }
 
-.rewardBtn{background:#ff9800;}
-.resetBtn{background:#ff5c5c;}
+.resetBtn{background:#ff5c5c}
+.rewardBtn{background:#ff9800}
+.donateBtn{background:#ff4081}
 
-/* 매장 */
-.store{
- position:relative;
- height:200px;
+.store,.house{
+ height:260px;
  border-radius:12px;
  margin-top:10px;
- background:#ddd;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ font-size:40px;
+}
+
+.store{background:#3a3a55}
+.house{background:#8b6f47}
+
+.gaugeBox{
+ height:14px;
+ background:#222;
+ border-radius:8px;
  overflow:hidden;
+ margin:6px 0;
 }
-.floor{
- position:absolute;
- bottom:0;
- height:40px;
- width:100%;
- background:#0003;
-}
-
-/* 집 */
-.house{
- position:relative;
- height:300px;
- border-radius:12px;
- background:linear-gradient(#c69c6d,#f0e0d6);
- margin-top:10px;
+.gauge{
+ height:100%;
+ background:#4aff7d;
+ width:0%;
 }
 
 .adBox{
- margin-top:20px;
+ position:fixed;
+ bottom:0;
+ left:0;
+ width:100%;
+ background:#111;
+ padding:5px;
 }
 </style>
 </head>
@@ -87,34 +93,35 @@ button{
 
 <h2>💼 타이쿤 클릭커</h2>
 
-<div class="panel">
-💰 돈: <b id="money">0</b>
-</div>
+<div class="panel">💰 돈: <span id="money">0</span></div>
 
 <div id="app"></div>
 
 <div class="panel">
-<button class="rewardBtn" onclick="watchAd()">🎥 광고 보기 → 30초 2배 수익</button>
-<button class="resetBtn" onclick="resetGame()">초기화</button>
+<button class="rewardBtn" onclick="watchAd()">🎥 광고 보기 → 30초 2배</button>
+
+<a href="https://buymeacoffee.com/yourid" target="_blank">
+<button class="donateBtn">💖 후원하기</button>
+</a>
 </div>
 
-<!-- ✅ 실제 광고 영역 -->
+</div>
+
+<!-- ✅ 하단 AdSense 광고 -->
 <div class="adBox">
 <ins class="adsbygoogle"
  style="display:block"
  data-ad-client="ca-pub-8799032368255701"
  data-ad-slot="1234567890"
- data-ad-format="auto"
- data-full-width-responsive="true"></ins>
+ data-ad-format="auto"></ins>
 <script>
 (adsbygoogle = window.adsbygoogle || []).push({});
 </script>
 </div>
 
-</div>
-
 <script>
 /* ================= 저장 ================= */
+
 const SAVE="tycoon_save";
 
 function setC(n,v){
@@ -126,129 +133,145 @@ function getC(n){
 }
 
 /* ================= 데이터 ================= */
+
 let data=getC(SAVE)||{
  money:0,
  multi:1,
- houseItems:0,
  shops:[
-  {name:"🏪 편의점", unlock:0, owned:true, workers:0},
-  {name:"☕ 카페", unlock:700, owned:false, workers:0},
-  {name:"🖥 PC방", unlock:2400, owned:false, workers:0}
+  {name:"🏪 편의점", unlock:0, owned:true, click:0, workers:0},
+  {name:"☕ 카페", unlock:700, owned:false, click:0, workers:0},
+  {name:"🖥 PC방", unlock:2400, owned:false, click:0, workers:0}
  ]
 };
 
-const moneyEl=document.getElementById("money");
-const app=document.getElementById("app");
+const CLICK_MAX=5;
+
+/* ================= 저장 ================= */
 
 function save(){
  setC(SAVE,data);
- moneyEl.textContent=Math.floor(data.money);
+ money.textContent=Math.floor(data.money);
 }
 
+/* ================= 자동 수익 ================= */
+
+setInterval(()=>{
+ data.shops.forEach(s=>{
+  if(!s.owned) return;
+  data.money += (s.workers*2) * data.multi;
+ });
+ save();
+},1000);
+
 /* ================= 홈 ================= */
+
 function renderHome(){
  app.innerHTML="";
 
  data.shops.forEach((s,i)=>{
   let b=document.createElement("button");
-
-  if(s.owned)
-   b.textContent=`${s.name} 입장 (직원 ${s.workers})`;
-  else
-   b.textContent=`🔒 ${s.name} 구매 (${s.unlock})`;
-
-  b.onclick=()=>s.owned?enterShop(i):unlock(i);
+  b.textContent=s.owned?`${s.name} 입장`:`🔒 ${s.name} (${s.unlock}원)`;
+  b.onclick=()=>s.owned?enter(i):unlock(i);
   app.appendChild(b);
  });
 
- let house=document.createElement("button");
- house.textContent="🏠 집 꾸미기";
- house.onclick=renderHouse;
- app.appendChild(house);
+ let r=document.createElement("button");
+ r.className="resetBtn";
+ r.textContent="🔄 초기화";
+ r.onclick=()=>{localStorage.clear(); location.reload();}
+ app.appendChild(r);
 }
 
 /* ================= 매장 ================= */
+
 function unlock(i){
  let s=data.shops[i];
- if(data.money<s.unlock) return alert("돈 부족!");
+ if(data.money<s.unlock) return;
  data.money-=s.unlock;
  s.owned=true;
- save();
  renderHome();
 }
 
-function enterShop(i){
+function enter(i){
  let s=data.shops[i];
 
  app.innerHTML=`
  <div class="panel">
  <h3>${s.name}</h3>
- <button onclick="hire(${i})">직원 고용 (${(s.workers+1)*50})</button>
+ <div>클릭 ${s.click}/${CLICK_MAX}</div>
+ <div class="gaugeBox"><div id="g" class="gauge"></div></div>
+
+ <button onclick="clickShop(${i})">홍보하기</button>
+ <button onclick="hire(${i})">직원 고용 (${(s.workers+1)*10})</button>
  <button onclick="renderHome()">홈</button>
- <div class="store"><div class="floor"></div></div>
- </div>`;
+
+ <div class="store">🏬</div>
+ </div>
+ `;
+
+ updateGauge(s);
+}
+
+function clickShop(i){
+ let s=data.shops[i];
+ s.click++;
+
+ updateGauge(s);
+
+ if(s.click>=CLICK_MAX){
+  s.click=0;
+  data.money+=5*data.multi;
+ }
+
+ save();
 }
 
 function hire(i){
  let s=data.shops[i];
- let cost=(s.workers+1)*50;
+ let cost=(s.workers+1)*10;
+
  if(data.money<cost) return;
+
  data.money-=cost;
  s.workers++;
- save();
- enterShop(i);
+ enter(i);
 }
 
-/* ================= 집 ================= */
-function renderHouse(){
- app.innerHTML=`
- <div class="panel">
- <h3>🏠 집 꾸미기</h3>
- <button onclick="buyFurniture()">🪑 가구 구매 (100)</button>
- <p>가구 개수: ${data.houseItems}</p>
- <button onclick="renderHome()">홈</button>
- <div class="house"></div>
- </div>`;
+function updateGauge(s){
+ let g=document.getElementById("g");
+ if(g) g.style.width=(s.click/CLICK_MAX*100)+"%";
 }
 
-function buyFurniture(){
- if(data.money<100) return;
- data.money-=100;
- data.houseItems++;
- save();
- renderHouse();
-}
+/* ================= ⭐ 광고 보상 (쿨타임 안전버전) ================= */
 
-/* ================= 자동 수익 ================= */
-setInterval(()=>{
- data.shops.forEach(s=>{
-  if(s.owned) data.money+=s.workers*2*data.multi;
- });
- save();
-},1000);
+let adCooldown=false;
 
-/* ================= 보상 광고 ================= */
 function watchAd(){
+
+ if(adCooldown){
+  alert("⏳ 잠시 후 다시 시청 가능!");
+  return;
+ }
+
+ adCooldown=true;
+
  alert("광고 시청 중...");
+
  setTimeout(()=>{
   data.multi*=2;
-  alert("30초 2배 시작!");
+  alert("✅ 30초 동안 수익 2배!");
+
   setTimeout(()=>data.multi/=2,30000);
  },3000);
+
+ setTimeout(()=>adCooldown=false,30000);
 }
 
-/* ================= 초기화 ================= */
-function resetGame(){
- if(confirm("초기화할까요?")){
-  document.cookie=SAVE+"=;max-age=0;path=/";
-  location.reload();
- }
-}
+/* ================= 시작 ================= */
 
-/* 시작 */
 renderHome();
 save();
-</script>
 
+</script>
 </body>
 </html>
